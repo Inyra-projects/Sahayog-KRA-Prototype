@@ -1,26 +1,32 @@
 import { useState, type ButtonHTMLAttributes } from "react";
 import { motion } from "framer-motion";
-import { Delete, FlaskConical, Loader2 } from "lucide-react";
+import { Delete, FlaskConical } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { useSession } from "./session";
 import { CENTER_ADDR, CENTER_NAME, DEMO_USERS } from "@/lib/demo";
+import { getDefaultRouteForRole, getStoredUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export function Login() {
   const { signIn } = useSession();
+  const navigate = useNavigate();
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
   const [step, setStep] = useState<"phone" | "pin">("phone");
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
-  const submit = async (p: string, n: string) => {
-    setBusy(true);
+  const submit = (p: string, n: string) => {
     setErr(null);
-    const e = await signIn(p, n);
-    setBusy(false);
+    const e = signIn(p, n);
     if (e) {
       setErr(e);
       setPin("");
+    } else {
+      const u = getStoredUser();
+      const dest = u ? getDefaultRouteForRole(u.role) : "/dashboard";
+      navigate({ to: dest as any }).catch(() => {
+        window.location.href = dest;
+      });
     }
   };
 
@@ -72,7 +78,6 @@ export function Login() {
                   className={cn("h-3.5 w-3.5 rounded-full border-2 border-primary", pin.length > i && "bg-primary")}
                 />
               ))}
-              {busy && <Loader2 className="ml-auto h-4 w-4 animate-spin text-primary" />}
             </div>
           </motion.div>
         )}
@@ -101,7 +106,6 @@ export function Login() {
             <button
               key={u.phone}
               type="button"
-              disabled={busy}
               onClick={() => { setPhone(u.phone); setPin(u.pin); setStep("pin"); submit(u.phone, u.pin); }}
               className="rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs font-semibold transition active:scale-95 hover:border-primary/50"
             >

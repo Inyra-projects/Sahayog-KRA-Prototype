@@ -49,7 +49,10 @@ export const BAND_LABEL: Record<Band, string> = { green: "On track", amber: "Wat
 
 /* ---------- week helpers (Mon–Sun weeks) ---------- */
 function parse(d: string) {
-  const [y, m, day] = d.split("-").map(Number);
+  const parts = d.split("-").map(Number);
+  const y = parts[0] ?? 2026;
+  const m = parts[1] ?? 1;
+  const day = parts[2] ?? 1;
   return new Date(Date.UTC(y, m - 1, day));
 }
 export function fmt(d: Date) {

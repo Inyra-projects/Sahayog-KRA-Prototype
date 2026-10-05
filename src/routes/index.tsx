@@ -1,8 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
-import { SessionProvider, useSession } from "@/components/kra/session";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { getDefaultRouteForRole, getStoredUser } from "@/lib/auth";
+import { SessionProvider } from "@/components/kra/session";
 import { Login } from "@/components/kra/Login";
-import { AppShell } from "@/components/kra/AppShell";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -19,15 +18,16 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  return (
-    <SessionProvider>
-      <Gate />
-    </SessionProvider>
-  );
-}
+  const user = getStoredUser();
 
-function Gate() {
-  const { token, ready } = useSession();
-  if (!ready) return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
-  return token ? <AppShell /> : <Login />;
+  if (!user) {
+    return (
+      <SessionProvider>
+        <Login />
+      </SessionProvider>
+    );
+  }
+
+  const dest = getDefaultRouteForRole(user.role);
+  return <Navigate to={dest as any} replace />;
 }
