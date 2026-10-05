@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ButtonHTMLAttributes } from "react";
 import { motion } from "framer-motion";
 import { Delete, FlaskConical, Loader2 } from "lucide-react";
 import { useSession } from "./session";
@@ -114,7 +114,7 @@ export function Login() {
   );
 }
 
-function Key({ children, primary, ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean }) {
+function Key({ children, primary, ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean }) {
   return (
     <motion.button
       type="button"
