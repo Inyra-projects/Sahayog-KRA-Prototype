@@ -14,7 +14,201 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      kras: {
+        Row: {
+          direction: string
+          id: string
+          name: string
+          role: string
+          sort: number
+          target: number
+          unit: string
+          weight: number
+        }
+        Insert: {
+          direction: string
+          id?: string
+          name: string
+          role: string
+          sort?: number
+          target: number
+          unit?: string
+          weight: number
+        }
+        Update: {
+          direction?: string
+          id?: string
+          name?: string
+          role?: string
+          sort?: number
+          target?: number
+          unit?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      login_events: {
+        Row: {
+          at: string
+          id: string
+          staff_id: string
+        }
+        Insert: {
+          at?: string
+          id?: string
+          staff_id: string
+        }
+        Update: {
+          at?: string
+          id?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "login_events_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      peer_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          from_id: string
+          id: string
+          stars: number
+          tag: string | null
+          to_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          from_id: string
+          id?: string
+          stars: number
+          tag?: string | null
+          to_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          from_id?: string
+          id?: string
+          stars?: number
+          tag?: string | null
+          to_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "peer_ratings_from_id_fkey"
+            columns: ["from_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "peer_ratings_to_id_fkey"
+            columns: ["to_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          created_at: string
+          staff_id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          staff_id: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          staff_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff: {
+        Row: {
+          active: boolean
+          center: string
+          created_at: string
+          id: string
+          name: string
+          phone: string
+          pin_hash: string
+          role: string
+        }
+        Insert: {
+          active?: boolean
+          center?: string
+          created_at?: string
+          id?: string
+          name: string
+          phone: string
+          pin_hash: string
+          role: string
+        }
+        Update: {
+          active?: boolean
+          center?: string
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string
+          pin_hash?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      weekly_entries: {
+        Row: {
+          actuals: Json
+          id: string
+          staff_id: string
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          actuals?: Json
+          id?: string
+          staff_id: string
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          actuals?: Json
+          id?: string
+          staff_id?: string
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_entries_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
