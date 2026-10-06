@@ -6,6 +6,7 @@ import type { Bootstrap } from "@/lib/kra.functions";
 import { saveEntry } from "@/lib/kra.functions";
 import { achievement, addWeeks, band, BAND_LABEL, krasFor, mondayOf, weekLabel, weekScore } from "@/lib/scoring";
 import { BandBadge, bandSoft, ScoreBar } from "./BandBadge";
+import { NumberTicker } from "./NumberTicker";
 import { useRefresh, useSession } from "./session";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +54,7 @@ export function WeeklyEntry({ data }: { data: Bootstrap }) {
         <h2 className="text-2xl font-semibold">This week's numbers</h2>
         <p className="text-sm text-muted-foreground">Monday–Sunday. You can update until the week is reviewed.</p>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
         {weeks.map((w) => (
           <button
             key={w}
@@ -69,15 +70,17 @@ export function WeeklyEntry({ data }: { data: Bootstrap }) {
         ))}
       </div>
 
-      <motion.div layout className={cn("sticky top-2 z-10 rounded-2xl p-4 shadow-card backdrop-blur", bandSoft[b])}>
+      <motion.div layout className="sticky top-2 z-10 card-surface p-5 backdrop-blur bg-card/90">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider opacity-80">Projected score</p>
-            <p className="font-display text-3xl font-semibold tabular">{Math.round(score)}%</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Projected score</p>
+            <p className="font-display text-3xl font-bold tracking-tight tabular mt-1">
+              <NumberTicker value={Math.round(score)} />%
+            </p>
           </div>
-          <span className="text-sm font-bold">{BAND_LABEL[b]}</span>
+          <BandBadge score={score} className="scale-110 origin-right" />
         </div>
-        <div className="mt-2"><ScoreBar score={score} /></div>
+        <div className="mt-4"><ScoreBar score={score} /></div>
       </motion.div>
 
       <div className="space-y-3">

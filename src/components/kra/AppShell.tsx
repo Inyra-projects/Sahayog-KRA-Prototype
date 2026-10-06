@@ -16,6 +16,26 @@ import { getDefaultRouteForRole, getStoredUser } from "@/lib/auth";
 
 type Tab = "dash" | "team" | "kras" | "entry" | "rate";
 
+const AVATAR_COLORS = [
+  "bg-emerald-600",
+  "bg-blue-600",
+  "bg-violet-600",
+  "bg-amber-600",
+  "bg-rose-600",
+  "bg-teal-600",
+  "bg-indigo-600",
+  "bg-fuchsia-600",
+];
+
+export function getAvatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[index];
+}
+
 export function AppShell({ initialTab }: { initialTab?: Tab }) {
   const { signOut, signIn } = useSession();
   const navigate = useNavigate();
@@ -77,10 +97,10 @@ export function AppShell({ initialTab }: { initialTab?: Tab }) {
 
   return (
     <div className="mx-auto min-h-screen max-w-2xl pb-28">
-      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/85 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-black/[0.05] bg-white/70 px-4 py-3 backdrop-blur-md">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary font-display text-sm font-semibold text-primary-foreground">
+            <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-full font-display text-sm font-semibold text-white", getAvatarColor(d.me.name))}>
               {d.me.name.replace("Dr. ", "").split(" ").map((x) => x[0]).join("").slice(0, 2)}
             </span>
             <div className="min-w-0">
@@ -112,17 +132,14 @@ export function AppShell({ initialTab }: { initialTab?: Tab }) {
       </main>
 
       {tabs.length > 1 && (
-        <nav className="fixed inset-x-0 bottom-0 z-20 px-4 pb-4">
-          <div className="mx-auto flex max-w-md gap-1 rounded-2xl border border-border/60 bg-card/95 p-1.5 shadow-lift backdrop-blur">
-            {tabs.map(({ id, label, Icon }) => (
-              <button key={id} type="button" onClick={() => setTab(id)} className="relative flex-1 rounded-xl py-2.5">
-                {active === id && <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-xl bg-accent" />}
-                <span className={cn("relative flex flex-col items-center gap-0.5 text-[11px] font-semibold", active === id ? "text-accent-foreground" : "text-muted-foreground")}>
-                  <Icon className="h-5 w-5" />{label}
-                </span>
-              </button>
-            ))}
-          </div>
+        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 p-1.5 bg-[#18191E]/95 backdrop-blur-xl border border-white/10 rounded-full shadow-[0_12px_36px_rgba(0,0,0,0.35)] h-16">
+          {tabs.map(({ id, label, Icon }) => (
+            <button key={id} type="button" onClick={() => setTab(id)} className="relative flex flex-col items-center justify-center w-[86px] h-full rounded-full z-10 transition-colors select-none">
+              {active === id && <motion.div layoutId="activeTabPill" className="absolute inset-0 bg-white/15 rounded-full -z-10 border border-white/10" transition={{ type: "spring", stiffness: 350, damping: 28 }} />}
+              <Icon className={cn("relative z-10 h-5 w-5 transition-colors", active === id ? "text-white" : "text-slate-400 hover:text-slate-200")} strokeWidth={active === id ? 2.5 : 2} />
+              <span className={cn("relative z-10 text-[10px] tracking-tight mt-0.5 transition-colors", active === id ? "text-white font-semibold" : "text-slate-400 font-medium")}>{label}</span>
+            </button>
+          ))}
         </nav>
       )}
 

@@ -9,6 +9,6 @@ export const DEMO_USERS = [
   { name: "Nikhil Patil", label: "Front desk", phone: "9876502002", pin: "2002" },
   { name: "Anjali More", label: "Front desk", phone: "9876502003", pin: "2003" },
 ];
-export const CENTER_NAME = "Sahayog — Nanded City";
+export const CENTER_NAME = "Sahayog • Nanded City";
 export const CENTER_ADDR = "Destination Center, F17 above D-Mart, Pune 411041";
 export const RATING_TAGS = ["Teamwork", "Patient handling", "Reliability", "Handoffs", "Lead tagging", "Helped on overflow"];

@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Activity, ChevronDown, Star, Users } from "lucide-react";
+import { Activity, Calendar, ChevronDown, Star, Users } from "lucide-react";
 import type { Bootstrap } from "@/lib/kra.functions";
 import { achievement, band, krasFor, monthLabel, monthOfWeek, personMonth, ROLE_LABEL, weekLabel, weekScore, type Role } from "@/lib/scoring";
 import { CENTER_ADDR, CENTER_NAME } from "@/lib/demo";
 import { BandBadge, bandSoft, ScoreBar } from "./BandBadge";
+import { NumberTicker } from "./NumberTicker";
 import { cn } from "@/lib/utils";
 
 type Filter = "all" | "phlebo" | "frontdesk";
@@ -32,58 +33,87 @@ export function Dashboard({ data }: { data: Bootstrap }) {
   return (
     <div className="space-y-5">
       <motion.section
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        className={cn("rounded-3xl p-5 shadow-card", center !== null ? bandSoft[band(center)] : "bg-muted")}
+        whileHover={{ y: -2 }}
+        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+        className="rounded-[32px] bg-[#1A1C20] p-[24px] text-white shadow-xl relative"
       >
-        <p className="text-xs font-semibold uppercase tracking-wider opacity-80">{CENTER_NAME}</p>
-        <p className="text-[11px] opacity-70">{CENTER_ADDR}</p>
-        <div className="mt-4 flex items-end justify-between gap-3">
-          <div>
-            <p className="font-display text-5xl font-semibold tabular">{center !== null ? `${Math.round(center)}%` : "—"}</p>
-            <p className="mt-1 text-sm font-medium opacity-80">Center score · {monthLabel(month)}</p>
+        <div className="absolute inset-0 rounded-[32px] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] pointer-events-none" />
+        
+        <div className="flex justify-between items-start relative z-10">
+          <div className="flex flex-col gap-[6px] items-start">
+            <span className="inline-flex items-center gap-[5px] rounded-full bg-white/10 px-[12px] py-[4px] text-[10px] font-semibold tracking-[0.5px] text-[#cad5e2]">
+              <span className="h-[6px] w-[6px] rounded-full bg-emerald-400" />
+              {CENTER_NAME}
+            </span>
+            <p className="text-[11px] font-normal text-[#90a1b9] pl-1">{CENTER_ADDR}</p>
           </div>
-          <select
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="rounded-xl border border-current/20 bg-card px-3 py-2 text-sm font-semibold text-foreground"
-          >
-            {months.map((m) => (
-              <option key={m} value={m}>{monthLabel(m)}</option>
-            ))}
-          </select>
+        </div>
+        
+        <div className="mt-8 flex gap-6 items-start justify-between w-full relative z-10">
+          <div className="flex flex-1 flex-col items-start justify-between min-w-0 pr-4">
+            <p className="text-[11px] font-medium leading-[16.5px] text-[#b2c5df] max-w-[200px]">
+              Average weekly scores across the Sep-Oct 2026 review period.
+            </p>
+            <div className="mt-2 flex flex-col gap-[6px]">
+              <div className="flex items-center gap-1.5 text-[11px] font-medium text-white">
+                <Calendar className="h-4 w-4" />
+                <span>28 Sep-4 Oct, 2026 • Week 39</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] font-medium text-white">
+                <Users className="h-4 w-4" />
+                <span>{shown.length} Team members</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col items-center justify-center whitespace-nowrap">
+            <p className="text-[11px] font-medium text-[#b2c5df]">Center score</p>
+            <p className="font-sans text-[42px] font-bold tracking-[-1.05px] text-white tabular-nums leading-[1.1]">
+              {center !== null ? <NumberTicker value={Math.round(center)} /> : "—"}
+              {center !== null && "%"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 flex justify-between px-2 relative z-10">
+          {([
+            ["rollup", "Roll-up", Users],
+            ["peer", "Peers", Star],
+            ["logins", "Logins", Activity],
+          ] as const).map(([id, label, Icon]) => (
+            <button key={id} type="button" onClick={() => setTab(id)} className="flex flex-col items-center gap-[7.5px] group">
+              <div className={cn("flex h-[56px] w-[56px] items-center justify-center rounded-full transition-all active:scale-95", tab === id ? "bg-white text-[#1a1c20] shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]" : "bg-white/10 text-white group-hover:bg-white/20")}>
+                <Icon className="h-[22px] w-[22px]" />
+              </div>
+              <span className={cn("text-[11px] font-medium transition-colors", tab === id ? "text-white" : "text-[#90a1b9]")}>{label}</span>
+            </button>
+          ))}
         </div>
       </motion.section>
-
-      <div className="grid grid-cols-3 gap-1 rounded-2xl bg-muted p-1">
-        {([
-          ["rollup", "Monthly roll-up", Users],
-          ["peer", "Peer signals", Star],
-          ["logins", "Login activity", Activity],
-        ] as const).map(([id, label, Icon]) => (
-          <button key={id} type="button" onClick={() => setTab(id)} className="relative rounded-xl px-2 py-2 text-xs font-semibold">
-            {tab === id && <motion.span layoutId="dash-tab" className="absolute inset-0 rounded-xl bg-card shadow-card" />}
-            <span className={cn("relative flex items-center justify-center gap-1.5", tab === id ? "text-foreground" : "text-muted-foreground")}>
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{label}</span>
-            </span>
-          </button>
-        ))}
-      </div>
 
       <AnimatePresence mode="wait">
         <motion.div key={tab} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.18 }}>
           {tab === "rollup" && (
             <div className="space-y-3">
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="mt-8 flex items-start justify-between">
+                <div>
+                  <h2 className="text-[19px] font-bold text-slate-900 tracking-tight">Team scorecards</h2>
+                  <p className="mt-1 text-[11px] text-slate-500 font-medium">Weekly average · tap a person for week drill-down</p>
+                </div>
+              </div>
+              
+              <div className="mt-4 mb-4 flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
                 {FILTERS.map((f) => (
                   <button
                     key={f.id}
-                    type="button"
                     onClick={() => setFilter(f.id)}
                     className={cn(
-                      "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition active:scale-95",
-                      filter === f.id ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card text-muted-foreground",
+                      "whitespace-nowrap rounded-full px-4 py-2 text-[11px] font-semibold transition-all",
+                      filter === f.id
+                        ? "bg-[#1A1C20] text-white shadow-md"
+                        : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                     )}
                   >
                     {f.label}
@@ -112,28 +142,36 @@ function PersonCard({ i, name, role, pm, data }: { i: number; name: string; role
   const ratings = data.ratings.filter((r) => r.to_id === pm.staffId);
   const avg = ratings.length ? ratings.reduce((s, r) => s + r.stars, 0) / ratings.length : null;
   return (
-    <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="card-surface overflow-hidden">
+    <motion.div layout initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} transition={{ delay: i * 0.05, type: "spring", stiffness: 350, damping: 25 }} className="card-surface overflow-hidden">
       <button type="button" onClick={() => setOpen(!open)} className="w-full p-4 text-left">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4">
+          <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-[14px] border", pm.month !== null ? bandSoft[band(pm.month)] : "bg-slate-50 text-slate-400 border-slate-100")}>
+            <Users className="h-5 w-5" />
+          </div>
           <div className="min-w-0">
-            <p className="truncate font-display font-semibold">{name}</p>
-            <p className="truncate text-xs text-muted-foreground">
+            <p className="truncate font-sans font-semibold text-slate-900">{name}</p>
+            <p className="truncate text-[11px] text-slate-400">
               {ROLE_LABEL[role]} · {pm.weeks.length} week{pm.weeks.length === 1 ? "" : "s"}
               {avg !== null && <> · <Star className="inline h-3 w-3 fill-star text-star" /> {avg.toFixed(1)}</>}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <BandBadge score={pm.month} showLabel={false} />
-            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition", open && "rotate-180")} />
-          </div>
+          <ChevronDown className={cn("h-4 w-4 text-slate-300 transition", open ? "rotate-0" : "-rotate-90")} />
         </div>
-        {pm.month !== null && <div className="mt-3"><ScoreBar score={pm.month} /></div>}
+        {pm.month !== null && (
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="flex justify-between text-[11px] font-semibold">
+              <span className="text-slate-900 tabular">{Math.round(pm.month)}% actual</span>
+              <span className="text-slate-400 tabular">100% target</span>
+            </div>
+            <ScoreBar score={pm.month} />
+          </div>
+        )}
       </button>
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
+          <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} transition={{ type: "spring", stiffness: 350, damping: 25 }} className="overflow-hidden">
             <div className="space-y-3 border-t border-border/60 bg-surface/50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Week drill-down</p>
+              <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-slate-400">Week drill-down</p>
               <div className="flex flex-wrap gap-2">
                 {pm.weeks.map((w) => (
                   <button
@@ -243,8 +281,8 @@ function Logins({ data }: { data: Bootstrap }) {
               </p>
             </div>
             <div className="text-right">
-              <p className="font-display text-lg font-semibold tabular">{l?.days7 ?? 0}<span className="text-xs text-muted-foreground">/7</span></p>
-              <p className="text-[11px] text-muted-foreground">days active</p>
+              <p className="font-display text-lg font-bold tracking-tight tabular"><NumberTicker value={l?.days7 ?? 0} /><span className="text-xs font-semibold text-muted-foreground">/7</span></p>
+              <p className="text-[11px] font-medium text-muted-foreground">days active</p>
             </div>
           </div>
         );
