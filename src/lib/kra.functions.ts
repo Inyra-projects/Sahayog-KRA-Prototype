@@ -22,30 +22,38 @@ export type Bootstrap = {
 export const login = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ phone, pin }).parse(d))
   .handler(async ({ data }) => {
-    const cleanPhone = data.phone.trim().replace(/\D/g, "");
-    const cleanPin = data.pin.trim().replace(/\D/g, "");
+    try {
+      const cleanPhone = data.phone.trim().replace(/\D/g, "");
+      const cleanPin = data.pin.trim().replace(/\D/g, "");
 
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("phone", cleanPhone)
-      .eq("pin", cleanPin)
-      .maybeSingle();
+      console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
 
-    if (error) {
-      console.error("Login DB error:", error);
-      return { ok: false as const, error: `DB Error: ${error.message} (Hint: check column names or RLS)` };
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("phone", cleanPhone)
+        .eq("pin", cleanPin)
+        .single();
+
+      if (error) {
+        console.error("Full Auth Error:", error);
+        return { ok: false as const, error: `DB Error: ${error.message} (Hint: check column names or RLS)` };
+      }
+
+      if (!user) {
+        return { ok: false as const, error: "Phone or PIN is incorrect" };
+      }
+
+      // Check for active if column exists, otherwise default to true
+      if (user.active === false) {
+        return { ok: false as const, error: "Account disabled. Contact administrator." };
+      }
+
+      return { ok: true as const, token: user.id, user };
+    } catch (e) {
+      console.error("Full Auth Error Exception:", e);
+      return { ok: false as const, error: `Auth Exception: ${(e as Error).message}` };
     }
-
-    if (!user) {
-      return { ok: false as const, error: "Phone or PIN is incorrect" };
-    }
-
-    if (!user.active) {
-      return { ok: false as const, error: "Account disabled. Contact administrator." };
-    }
-
-    return { ok: true as const, token: user.id, user };
   });
 
 export const logout = createServerFn({ method: "POST" })
