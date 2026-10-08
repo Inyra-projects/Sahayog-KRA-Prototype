@@ -60,7 +60,11 @@ export function useBootstrap() {
   const { user } = useSession();
   return useQuery({
     queryKey: ["bootstrap", user?.id],
-    queryFn: async () => getLocalBootstrap(),
+    queryFn: async () => {
+      if (!user) throw new Error("Not signed in");
+      const { getBootstrap } = await import("@/lib/kra.functions");
+      return getBootstrap({ data: { token: user.id } });
+    },
     enabled: !!user,
   });
 }

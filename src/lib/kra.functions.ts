@@ -115,15 +115,17 @@ export const saveEntry = createServerFn({ method: "POST" })
     const { data: me } = await supabase.from("users").select("*").eq("id", data.token).single();
     
     if (me && (me.role === "phlebo" || me.role === "frontdesk")) {
-      const { error } = await supabase
-        .from("weekly_actuals")
-        .upsert(
-          { staff_id: me.id, week_start: data.weekStart, actuals: data.actuals, updated_at: new Date().toISOString() },
-          { onConflict: "staff_id,week_start" }
-        );
-      if (error) console.error("Save entry error", error);
-    }
-    return { ok: true };
+        const { error } = await supabase
+          .from("weekly_actuals")
+          .upsert(
+            { staff_id: me.id, week_start: data.weekStart, actuals: data.actuals, updated_at: new Date().toISOString() },
+            { onConflict: "staff_id,week_start" }
+          );
+        if (error) throw new Error(error.message || "Failed to save entry");
+      } else {
+        throw new Error("Unauthorized");
+      }
+      return { ok: true };
   });
 
 export const addRating = createServerFn({ method: "POST" })
@@ -142,13 +144,16 @@ export const addRating = createServerFn({ method: "POST" })
     const { data: me } = await supabase.from("users").select("*").eq("id", data.token).single();
     
     if (me && data.toId !== me.id) {
-      await supabase.from("peer_ratings").insert({
+      const { error } = await supabase.from("peer_ratings").insert({
         from_id: me.id,
         to_id: data.toId,
         stars: data.stars,
         tag: data.tag || null,
         comment: data.comment || null,
       });
+      if (error) throw new Error(error.message || "Failed to add rating");
+    } else {
+      throw new Error("Unauthorized or invalid user");
     }
     return { ok: true };
   });
@@ -171,14 +176,24 @@ export const upsertStaff = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { data: me } = await supabase.from("users").select("*").eq("id", data.token).single();
     if (me && me.role === "admin") {
-      const row: Record<string, unknown> = { name: data.name, phone: data.phone, role: data.role, center: data.center, active: data.active };
+      const cleanPhone = data.phone.trim().replace(/\D/g, "");
+      const row: Record<string, unknown> = { name: data.name, phone: cleanPhone, role: data.role, center: data.center, active: data.active };
       if (data.pin) row["pin"] = data.pin;
       
+      let error;
       if (data.id) {
-        await supabase.from("users").update(row).eq("id", data.id);
+        const res = await supabase.from("users").update(row).eq("id", data.id);
+        error = res.error;
       } else {
-        await supabase.from("users").insert(row);
+        const res = await supabase.from("users").insert(row);
+        error = res.error;
       }
+      
+      if (error) {
+        throw new Error(error.message || "Failed to save staff");
+      }
+    } else {
+      throw new Error("Unauthorized");
     }
     return { ok: true };
   });
@@ -202,11 +217,17 @@ export const upsertKra = createServerFn({ method: "POST" })
     const { data: me } = await supabase.from("users").select("*").eq("id", data.token).single();
     if (me && me.role === "admin") {
       const { token: _t, id, ...row } = data;
+      let error;
       if (id) {
-        await supabase.from("kras").update(row).eq("id", id);
+        const res = await supabase.from("kras").update(row).eq("id", id);
+        error = res.error;
       } else {
-        await supabase.from("kras").insert({ ...row, sort: 100 });
+        const res = await supabase.from("kras").insert({ ...row, sort: 100 });
+        error = res.error;
       }
+      if (error) throw new Error(error.message || "Failed to save KRA");
+    } else {
+      throw new Error("Unauthorized");
     }
     return { ok: true };
   });
@@ -216,7 +237,10 @@ export const deleteKra = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { data: me } = await supabase.from("users").select("*").eq("id", data.token).single();
     if (me && me.role === "admin") {
-      await supabase.from("kras").delete().eq("id", data.id);
+      const { error } = await supabase.from("kras").delete().eq("id", data.id);
+      if (error) throw new Error(error.message || "Failed to delete KRA");
+    } else {
+      throw new Error("Unauthorized");
     }
     return { ok: true };
   });
