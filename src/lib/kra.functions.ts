@@ -34,7 +34,7 @@ export const login = createServerFn({ method: "POST" })
 
     if (error) {
       console.error("Login DB error:", error);
-      return { ok: false as const, error: "Database error occurred" };
+      return { ok: false as const, error: `DB Error: ${error.message} (Hint: check column names or RLS)` };
     }
 
     if (!user) {
