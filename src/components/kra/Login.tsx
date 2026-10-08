@@ -21,9 +21,9 @@ export function Login() {
     return () => clearTimeout(t);
   }, []);
 
-  const submit = (p: string, n: string) => {
+  const submit = async (p: string, n: string) => {
     setErr(null);
-    const e = signIn(p, n);
+    const e = await signIn(p, n);
     if (e) {
       setErr(e);
       setPin("");

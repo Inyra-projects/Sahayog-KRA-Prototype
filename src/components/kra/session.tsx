@@ -7,7 +7,7 @@ type Ctx = {
   user: PRDUser | null;
   token: string | null;
   ready: boolean;
-  signIn: (phone: string, pin: string) => string | null;
+  signIn: (phone: string, pin: string) => Promise<string | null>;
   signOut: () => void;
 };
 const SessionCtx = createContext<Ctx | null>(null);
@@ -19,14 +19,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
 
   const signIn = useCallback(
-    (phone: string, pin: string): string | null => {
-      const res = authenticateLocal(phone, pin);
-      if (!res.ok || !res.user) {
-        return res.error || "Phone or PIN is incorrect";
+    async (phone: string, pin: string): Promise<string | null> => {
+      const { login } = await import("@/lib/kra.functions");
+      try {
+        const res = await login({ data: { phone, pin } });
+        if (!res.ok || !res.user) {
+          return res.error || "Phone or PIN is incorrect";
+        }
+        
+        // Use our new setStoredUser from auth.ts instead of authenticateLocal
+        const { setStoredUser } = await import("@/lib/auth");
+        setStoredUser(res.user);
+
+        qc.clear();
+        setUser(res.user);
+        return null;
+      } catch (e) {
+        return (e as Error).message;
       }
-      qc.clear();
-      setUser(res.user);
-      return null;
     },
     [qc],
   );

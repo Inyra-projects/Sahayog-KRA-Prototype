@@ -1,15 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { Entry, Kra, Role } from "./scoring";
-import { authenticateLocal, getStoredUser, logoutLocal } from "./auth";
-import {
-  addLocalRating,
-  deleteLocalKra,
-  getLocalBootstrap,
-  saveLocalEntry,
-  upsertLocalKra,
-  upsertLocalStaff,
-} from "./localStore";
+import { supabase } from "./supabase";
 
 const tok = z.string().min(1).max(200);
 const phone = z.string().regex(/^\d{10}$/, "Phone must be 10 digits");
@@ -30,72 +22,83 @@ export type Bootstrap = {
 export const login = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ phone, pin }).parse(d))
   .handler(async ({ data }) => {
-    // Synchronous local match against PRD users
-    const res = authenticateLocal(data.phone, data.pin);
-    if (!res.ok || !res.user) {
-      return { ok: false as const, error: res.error || "Phone or PIN is incorrect" };
+    const cleanPhone = data.phone.trim().replace(/\D/g, "");
+    const cleanPin = data.pin.trim().replace(/\D/g, "");
+
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("phone", cleanPhone)
+      .eq("pin", cleanPin)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Login DB error:", error);
+      return { ok: false as const, error: "Database error occurred" };
     }
-    return { ok: true as const, token: res.user.id, user: res.user };
+
+    if (!user) {
+      return { ok: false as const, error: "Phone or PIN is incorrect" };
+    }
+
+    if (!user.active) {
+      return { ok: false as const, error: "Account disabled. Contact administrator." };
+    }
+
+    return { ok: true as const, token: user.id, user };
   });
 
 export const logout = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: tok }).parse(d))
   .handler(async ({ data }) => {
-    logoutLocal();
     return { ok: true };
   });
 
 export const getBootstrap = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: tok.optional() }).parse(d))
   .handler(async ({ data }): Promise<Bootstrap> => {
-    try {
-      const { db, requireUser } = await import("./kra.server");
-      if (data.token) {
-        const me = await requireUser(data.token);
-        const sb = await db();
-        const lead = me.role === "admin" || me.role === "manager";
-        const [{ data: staff }, { data: kras }] = await Promise.all([
-          sb.from("staff").select("id,name,phone,role,center,active").order("name"),
-          sb.from("kras").select("*").order("sort"),
-        ]);
-        let eq = sb.from("weekly_entries").select("staff_id,week_start,actuals");
-        if (!lead) eq = eq.eq("staff_id", me.id);
-        let rq = sb.from("peer_ratings").select("*").order("created_at", { ascending: false });
-        if (!lead) rq = rq.eq("from_id", me.id);
-        const [{ data: entries }, { data: ratings }] = await Promise.all([eq, rq]);
-
-        let logins: LoginStat[] = [];
-        if (lead) {
-          const since = new Date(Date.now() - 7 * 864e5).toISOString();
-          const [{ data: recent }, { data: all }] = await Promise.all([
-            sb.from("login_events").select("staff_id,at").gte("at", since),
-            sb.from("login_events").select("staff_id,at").order("at", { ascending: false }).limit(1000),
-          ]);
-          logins = (staff ?? []).map((s) => {
-            const r = (recent ?? []).filter((e) => e.staff_id === s.id);
-            return {
-              staff_id: s.id,
-              last: (all ?? []).find((e) => e.staff_id === s.id)?.at ?? null,
-              total7: r.length,
-              days7: new Set(r.map((e) => e.at.slice(0, 10))).size,
-            };
-          });
-        }
-        return {
-          me: { id: me.id, name: me.name, role: me.role, center: me.center },
-          staff: ((staff ?? []) as StaffRow[])
-            .filter((s) => lead || s.active)
-            .map((s) => (me.role === "admin" ? s : { ...s, phone: lead ? s.phone : "" })),
-          kras: (kras ?? []) as Kra[],
-          entries: (entries ?? []) as Entry[],
-          ratings: (ratings ?? []) as Rating[],
-          logins,
-        };
-      }
-    } catch {
-      // Fallback to localStore when Supabase DB is unconfigured/unavailable
+    if (!data.token) {
+      throw new Error("Not signed in");
     }
-    return getLocalBootstrap();
+
+    const { data: me } = await supabase.from("users").select("*").eq("id", data.token).single();
+    if (!me || !me.active) throw new Error("Account disabled or not found");
+
+    const lead = me.role === "admin" || me.role === "manager";
+    
+    const [{ data: staff }, { data: kras }] = await Promise.all([
+      supabase.from("users").select("id,name,phone,role,center,active").order("name"),
+      supabase.from("kras").select("*").order("sort"),
+    ]);
+
+    let eq = supabase.from("weekly_actuals").select("staff_id,week_start,actuals");
+    if (!lead) eq = eq.eq("staff_id", me.id);
+    
+    let rq = supabase.from("peer_ratings").select("*").order("created_at", { ascending: false });
+    if (!lead) rq = rq.eq("from_id", me.id);
+    
+    const [{ data: entries }, { data: ratings }] = await Promise.all([eq, rq]);
+
+    let logins: LoginStat[] = [];
+    if (lead) {
+      logins = (staff ?? []).map((s) => ({
+        staff_id: s.id,
+        last: null,
+        total7: 0,
+        days7: 0,
+      }));
+    }
+
+    return {
+      me: { id: me.id, name: me.name, role: me.role, center: me.center },
+      staff: ((staff ?? []) as StaffRow[])
+        .filter((s) => lead || s.active)
+        .map((s) => (me.role === "admin" ? s : { ...s, phone: lead ? s.phone : "" })),
+      kras: (kras ?? []) as Kra[],
+      entries: (entries ?? []) as Entry[],
+      ratings: (ratings ?? []) as Rating[],
+      logins,
+    };
   });
 
 export const saveEntry = createServerFn({ method: "POST" })
@@ -109,18 +112,16 @@ export const saveEntry = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    saveLocalEntry(data.weekStart, data.actuals);
-    try {
-      const { db, requireUser } = await import("./kra.server");
-      const me = await requireUser(data.token);
-      if (me.role === "phlebo" || me.role === "frontdesk") {
-        const sb = await db();
-        await sb
-          .from("weekly_entries")
-          .upsert({ staff_id: me.id, week_start: data.weekStart, actuals: data.actuals, updated_at: new Date().toISOString() }, { onConflict: "staff_id,week_start" });
-      }
-    } catch {
-      // Supabase unconfigured, local update saved
+    const { data: me } = await supabase.from("users").select("*").eq("id", data.token).single();
+    
+    if (me && (me.role === "phlebo" || me.role === "frontdesk")) {
+      const { error } = await supabase
+        .from("weekly_actuals")
+        .upsert(
+          { staff_id: me.id, week_start: data.weekStart, actuals: data.actuals, updated_at: new Date().toISOString() },
+          { onConflict: "staff_id,week_start" }
+        );
+      if (error) console.error("Save entry error", error);
     }
     return { ok: true };
   });
@@ -138,22 +139,16 @@ export const addRating = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    addLocalRating(data.toId, data.stars, data.tag, data.comment);
-    try {
-      const { db, requireUser } = await import("./kra.server");
-      const me = await requireUser(data.token);
-      if (data.toId !== me.id) {
-        const sb = await db();
-        await sb.from("peer_ratings").insert({
-          from_id: me.id,
-          to_id: data.toId,
-          stars: data.stars,
-          tag: data.tag || null,
-          comment: data.comment || null,
-        });
-      }
-    } catch {
-      // Supabase unconfigured, local update saved
+    const { data: me } = await supabase.from("users").select("*").eq("id", data.token).single();
+    
+    if (me && data.toId !== me.id) {
+      await supabase.from("peer_ratings").insert({
+        from_id: me.id,
+        to_id: data.toId,
+        stars: data.stars,
+        tag: data.tag || null,
+        comment: data.comment || null,
+      });
     }
     return { ok: true };
   });
@@ -174,31 +169,16 @@ export const upsertStaff = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    upsertLocalStaff({
-      id: data.id,
-      name: data.name,
-      phone: data.phone,
-      pin: data.pin,
-      role: data.role,
-      center: data.center,
-      active: data.active,
-    });
-    try {
-      const { db, requireUser, pinHash } = await import("./kra.server");
-      const me = await requireUser(data.token);
-      if (me.role === "admin") {
-        const sb = await db();
-        const row: Record<string, unknown> = { name: data.name, phone: data.phone, role: data.role, center: data.center, active: data.active };
-        if (data.pin) row["pin_hash"] = await pinHash(data.phone, data.pin);
-        const staffTable = sb.from("staff") as any;
-        if (data.id) {
-          await staffTable.update(row).eq("id", data.id);
-        } else {
-          await staffTable.insert(row);
-        }
+    const { data: me } = await supabase.from("users").select("*").eq("id", data.token).single();
+    if (me && me.role === "admin") {
+      const row: Record<string, unknown> = { name: data.name, phone: data.phone, role: data.role, center: data.center, active: data.active };
+      if (data.pin) row["pin"] = data.pin;
+      
+      if (data.id) {
+        await supabase.from("users").update(row).eq("id", data.id);
+      } else {
+        await supabase.from("users").insert(row);
       }
-    } catch {
-      // Supabase unconfigured, local update saved
     }
     return { ok: true };
   });
@@ -219,21 +199,14 @@ export const upsertKra = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    upsertLocalKra(data);
-    try {
-      const { db, requireUser } = await import("./kra.server");
-      const me = await requireUser(data.token);
-      if (me.role === "admin") {
-        const sb = await db();
-        const { token: _t, id, ...row } = data;
-        if (id) {
-          await sb.from("kras").update(row).eq("id", id);
-        } else {
-          await sb.from("kras").insert({ ...row, sort: 100 });
-        }
+    const { data: me } = await supabase.from("users").select("*").eq("id", data.token).single();
+    if (me && me.role === "admin") {
+      const { token: _t, id, ...row } = data;
+      if (id) {
+        await supabase.from("kras").update(row).eq("id", id);
+      } else {
+        await supabase.from("kras").insert({ ...row, sort: 100 });
       }
-    } catch {
-      // Supabase unconfigured, local update saved
     }
     return { ok: true };
   });
@@ -241,16 +214,9 @@ export const upsertKra = createServerFn({ method: "POST" })
 export const deleteKra = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ token: tok, id: z.string().max(60) }).parse(d))
   .handler(async ({ data }) => {
-    deleteLocalKra(data.id);
-    try {
-      const { db, requireUser } = await import("./kra.server");
-      const me = await requireUser(data.token);
-      if (me.role === "admin") {
-        const sb = await db();
-        await sb.from("kras").delete().eq("id", data.id);
-      }
-    } catch {
-      // Supabase unconfigured, local update saved
+    const { data: me } = await supabase.from("users").select("*").eq("id", data.token).single();
+    if (me && me.role === "admin") {
+      await supabase.from("kras").delete().eq("id", data.id);
     }
     return { ok: true };
   });

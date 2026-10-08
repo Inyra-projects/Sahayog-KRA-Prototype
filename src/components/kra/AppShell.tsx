@@ -77,10 +77,10 @@ export function AppShell({ initialTab }: { initialTab?: Tab }) {
 
   const active = tab && tabs.some((t) => t.id === tab) ? tab : (tabs[0]?.id ?? "dash");
 
-  const quick = (phone: string, pin: string) => {
+  const quick = async (phone: string, pin: string) => {
     setSwitchOpen(false);
     setTab(null);
-    const e = signIn(phone, pin);
+    const e = await signIn(phone, pin);
     if (e) {
       toast.error(`${e} — the PIN may have been changed`);
     } else {
