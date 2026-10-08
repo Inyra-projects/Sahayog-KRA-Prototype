@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { authenticateLocal, getStoredUser, logoutLocal, type PRDUser } from "@/lib/auth";
-import { getLocalBootstrap } from "@/lib/localStore";
+import { getStoredUser, logoutLocal, type PRDUser } from "@/lib/auth";
+
 
 type Ctx = {
   user: PRDUser | null;
