@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getStoredUser, logoutLocal, type PRDUser } from "@/lib/auth";
-
+import { getStoredUser, logoutLocal, setStoredUser, type PRDUser } from "@/lib/auth";
+import { getBootstrap, login } from "@/lib/kra.functions";
 
 type Ctx = {
   user: PRDUser | null;
@@ -20,17 +20,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (phone: string, pin: string): Promise<string | null> => {
-      const { login } = await import("@/lib/kra.functions");
       try {
         const res = await login({ data: { phone, pin } });
         if (!res.ok || !res.user) {
           return res.error || "Phone or PIN is incorrect";
         }
-        
-        // Use our new setStoredUser from auth.ts instead of authenticateLocal
-        const { setStoredUser } = await import("@/lib/auth");
-        setStoredUser(res.user);
 
+        setStoredUser(res.user);
         qc.clear();
         setUser(res.user);
         return null;
@@ -62,7 +58,6 @@ export function useBootstrap() {
     queryKey: ["bootstrap", user?.id],
     queryFn: async () => {
       if (!user) throw new Error("Not signed in");
-      const { getBootstrap } = await import("@/lib/kra.functions");
       return getBootstrap({ data: { token: user.id } });
     },
     enabled: !!user,
