@@ -132,12 +132,12 @@ export function AppShell({ initialTab }: { initialTab?: Tab }) {
       </main>
 
       {tabs.length > 1 && (
-        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 p-1.5 bg-[#18191E]/95 backdrop-blur-xl border border-white/10 rounded-full shadow-[0_12px_36px_rgba(0,0,0,0.35)] h-16">
+        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 p-1.5 bg-gradient-to-r from-[#4A1282]/95 via-[#601DAF]/95 to-[#4A1282]/95 backdrop-blur-xl border border-purple-200/30 rounded-full shadow-[0_16px_40px_-6px_rgba(96,29,175,0.4),0_8px_20px_-4px_rgba(0,0,0,0.25)] h-16">
           {tabs.map(({ id, label, Icon }) => (
             <button key={id} type="button" onClick={() => setTab(id)} className="relative flex flex-col items-center justify-center w-[86px] h-full rounded-full z-10 transition-colors select-none">
-              {active === id && <motion.div layoutId="activeTabPill" className="absolute inset-0 bg-white/15 rounded-full -z-10 border border-white/10" transition={{ type: "spring", stiffness: 350, damping: 28 }} />}
-              <Icon className={cn("relative z-10 h-5 w-5 transition-colors", active === id ? "text-white" : "text-slate-400 hover:text-slate-200")} strokeWidth={active === id ? 2.5 : 2} />
-              <span className={cn("relative z-10 text-[10px] tracking-tight mt-0.5 transition-colors", active === id ? "text-white font-semibold" : "text-slate-400 font-medium")}>{label}</span>
+              {active === id && <motion.div layoutId="activeTabPill" className="absolute inset-0 bg-white rounded-full -z-10 shadow-[0_4px_16px_rgba(255,255,255,0.4)]" transition={{ type: "spring", stiffness: 350, damping: 28 }} />}
+              <Icon className={cn("relative z-10 h-5 w-5 transition-colors", active === id ? "text-[#601DAF]" : "text-purple-200/80 hover:text-white")} strokeWidth={active === id ? 2.5 : 2} />
+              <span className={cn("relative z-10 text-[10px] tracking-tight mt-0.5 transition-colors", active === id ? "text-[#601DAF] font-bold" : "text-purple-200/80 font-medium hover:text-white")}>{label}</span>
             </button>
           ))}
         </nav>

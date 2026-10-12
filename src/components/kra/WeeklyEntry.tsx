@@ -62,7 +62,9 @@ export function WeeklyEntry({ data }: { data: Bootstrap }) {
             onClick={() => setWs(w)}
             className={cn(
               "shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95",
-              ws === w ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card text-muted-foreground",
+              ws === w
+                ? "bg-gradient-to-r from-[#601DAF] via-[#7B2CBF] to-[#4A1282] text-white border border-purple-300/30"
+                : "border border-slate-200 bg-slate-100/80 text-slate-700 hover:bg-slate-200/80 hover:text-slate-900",
             )}
           >
             {w === current ? "This week" : weekLabel(w)}
@@ -128,7 +130,7 @@ export function WeeklyEntry({ data }: { data: Bootstrap }) {
         type="button"
         disabled={!filled || saving}
         onClick={save}
-        className="flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 font-semibold text-primary-foreground shadow-lift disabled:opacity-40"
+        className="flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#601DAF] via-[#7B2CBF] to-[#4A1282] py-3.5 font-semibold text-white shadow-md shadow-purple-900/25 disabled:opacity-40 active:scale-98 transition-all"
       >
         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
         {existing ? "Update week" : "Submit week"}

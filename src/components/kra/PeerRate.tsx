@@ -83,7 +83,12 @@ export function PeerRate({ data }: { data: Bootstrap }) {
                       key={t}
                       type="button"
                       onClick={() => setTag(tag === t ? "" : t)}
-                      className={cn("rounded-full border px-3 py-1.5 text-xs font-semibold transition active:scale-95", tag === t ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card")}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-xs font-semibold transition active:scale-95",
+                        tag === t
+                          ? "bg-gradient-to-r from-[#601DAF] via-[#7B2CBF] to-[#4A1282] text-white border border-purple-300/30 shadow-sm"
+                          : "border border-slate-200 bg-slate-100/80 text-slate-700 hover:bg-slate-200/80 hover:text-slate-900"
+                      )}
                     >
                       {t}
                     </button>
@@ -107,7 +112,7 @@ export function PeerRate({ data }: { data: Bootstrap }) {
                   type="button"
                   onClick={submit}
                   disabled={busy}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 font-semibold text-primary-foreground shadow-lift disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#601DAF] via-[#7B2CBF] to-[#4A1282] py-3.5 font-semibold text-white shadow-md shadow-purple-900/25 disabled:opacity-50 active:scale-98 transition-all"
                 >
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Send rating
                 </motion.button>

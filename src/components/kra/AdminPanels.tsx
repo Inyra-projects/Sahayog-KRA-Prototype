@@ -20,7 +20,7 @@ export function ManageTeam({ data }: { data: Bootstrap }) {
           <h2 className="text-2xl font-semibold">Team</h2>
           <p className="text-sm text-muted-foreground">Add staff and managers, set roles and PINs.</p>
         </div>
-        <button type="button" onClick={() => setEdit({ role: "phlebo", center: "Nanded City", active: true })} className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground active:scale-95">
+        <button type="button" onClick={() => setEdit({ role: "phlebo", center: "Nanded City", active: true })} className="flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#601DAF] to-[#7B2CBF] px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-purple-900/20 active:scale-95">
           <Plus className="h-4 w-4" /> Add
         </button>
       </div>
@@ -105,7 +105,7 @@ function StaffDialog({ value, onClose }: { value: Partial<StaffRow> | null; onCl
           <label className="flex items-center gap-2 text-sm font-medium">
             <input type="checkbox" checked={f.active ?? true} onChange={(e) => setF({ ...f, active: e.target.checked })} className="h-4 w-4 accent-primary" /> Active
           </label>
-          <button type="button" onClick={save} disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-50">
+          <button type="button" onClick={save} disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#601DAF] via-[#7B2CBF] to-[#4A1282] py-3 font-semibold text-white shadow-md shadow-purple-900/20 disabled:opacity-50 active:scale-98 transition-all">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />} Save
           </button>
         </div>
@@ -143,7 +143,7 @@ export function EditKras({ data }: { data: Bootstrap }) {
                   <Pencil className="h-4 w-4 text-muted-foreground" />
                 </button>
               ))}
-              <button type="button" onClick={() => setEdit({ role: r, direction: "higher_better", unit: "", weight: 0, target: 0 })} className="flex w-full items-center gap-2 px-4 py-3 text-sm font-semibold text-primary">
+              <button type="button" onClick={() => setEdit({ role: r, direction: "higher_better", unit: "", weight: 0, target: 0 })} className="flex w-full items-center gap-2 px-4 py-3 text-sm font-semibold text-[#601DAF] hover:text-[#4A1282]">
                 <Plus className="h-4 w-4" /> Add KRA
               </button>
             </div>
@@ -216,7 +216,7 @@ function KraDialog({ value, onClose }: { value: Partial<Kra> | null; onClose: ()
             <p className={label}>Direction</p>
             <div className="grid grid-cols-2 gap-2">
               {(["higher_better", "lower_better"] as const).map((d) => (
-                <button key={d} type="button" onClick={() => setF({ ...f, direction: d })} className={cn("rounded-xl border py-2.5 text-sm font-semibold", f.direction === d ? "border-primary bg-accent text-accent-foreground" : "border-border/70")}>
+                <button key={d} type="button" onClick={() => setF({ ...f, direction: d })} className={cn("rounded-xl border py-2.5 text-sm font-semibold transition active:scale-95", f.direction === d ? "bg-gradient-to-r from-[#601DAF] via-[#7B2CBF] to-[#4A1282] text-white border-purple-300/30 shadow-sm" : "border-slate-200 bg-slate-100/80 text-slate-700 hover:bg-slate-200/80")}>
                   {d === "higher_better" ? "Higher better" : "Lower better"}
                 </button>
               ))}
@@ -228,7 +228,7 @@ function KraDialog({ value, onClose }: { value: Partial<Kra> | null; onClose: ()
                 <Trash2 className="h-4 w-4" />
               </button>
             )}
-            <button type="button" onClick={save} disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-50">
+            <button type="button" onClick={save} disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#601DAF] via-[#7B2CBF] to-[#4A1282] py-3 font-semibold text-white shadow-md shadow-purple-900/20 disabled:opacity-50 active:scale-98 transition-all">
               {busy && <Loader2 className="h-4 w-4 animate-spin" />} Save
             </button>
           </div>

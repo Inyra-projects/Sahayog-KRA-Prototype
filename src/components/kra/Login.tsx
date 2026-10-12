@@ -107,7 +107,7 @@ export function Login() {
                     <motion.span
                       key={i}
                       animate={{ scale: pin.length > i ? 1.15 : 1 }}
-                      className={cn("h-4 w-4 rounded-full border-2 border-[#1A1C20]", pin.length > i && "bg-[#1A1C20]")}
+                      className={cn("h-4 w-4 rounded-full border-2 border-[#601DAF]", pin.length > i && "bg-[#601DAF]")}
                     />
                   ))}
                 </div>
@@ -160,7 +160,7 @@ function Key({ children, primary, ...p }: ButtonHTMLAttributes<HTMLButtonElement
       {...(p as object)}
       className={cn(
         "h-[60px] font-sans text-[22px] font-medium transition disabled:opacity-40 flex items-center justify-center",
-        primary ? "bg-[#1A1C20] text-base text-white rounded-full shadow-md" : "border border-slate-100 bg-white rounded-[24px] shadow-[0_1px_3px_rgba(0,0,0,0.02)] text-slate-900",
+        primary ? "bg-gradient-to-r from-[#601DAF] via-[#7B2CBF] to-[#4A1282] text-base text-white rounded-full shadow-md shadow-purple-900/25 border border-purple-300/30" : "border border-slate-100 bg-white rounded-[24px] shadow-[0_1px_3px_rgba(0,0,0,0.02)] text-slate-900",
       )}
     >
       {children}

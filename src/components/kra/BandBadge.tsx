@@ -20,7 +20,7 @@ export function BandBadge({ score, className, showLabel = true }: { score: numbe
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold tabular", bandSoft[b], className)}>
       <span className={cn("h-1.5 w-1.5 rounded-full", bandBar[b])} />
-      {Math.round(score)}%{showLabel && <span className="font-semibold opacity-80">· {BAND_LABEL[b]}</span>}
+      {Math.min(100, Math.round(score))}%{showLabel && <span className="font-semibold opacity-80">· {BAND_LABEL[b]}</span>}
     </span>
   );
 }
