@@ -94,16 +94,22 @@ export function WeeklyEntry({ data }: { data: Bootstrap }) {
             <div key={k.id} className="card-surface p-4">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
                 <div className="min-w-0">
-                  <p className="font-semibold leading-snug">{k.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Target {k.direction === "lower_better" ? (Number(k.target) === 0 ? "0" : `≤ ${k.target}`) : k.target} {k.unit} · weight {k.weight}%
-                    {k.direction === "lower_better" && " · lower is better"}
+                  <p className="font-semibold text-sm text-foreground leading-snug">{k.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Target: {k.direction === "lower_better" ? (Number(k.target) === 0 ? "0" : `≤ ${k.target}`) : k.target} {k.unit} • Weight: {k.weight}%
+                    {k.direction === "lower_better" && " • (lower is better)"}
                   </p>
                 </div>
                 <BandBadge score={a} showLabel={false} />
               </div>
               <div className="mt-3 flex items-center gap-2">
-                <motion.button whileTap={{ scale: 0.9 }} type="button" onClick={() => step(-1)} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border/70 bg-surface" aria-label="Decrease">
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  type="button"
+                  onClick={() => step(-1)}
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition active:scale-95 shadow-xs"
+                  aria-label="Decrease"
+                >
                   <Minus className="h-4 w-4" />
                 </motion.button>
                 <input
@@ -114,9 +120,15 @@ export function WeeklyEntry({ data }: { data: Bootstrap }) {
                     const t = e.target.value.replace(/[^\d.]/g, "");
                     setVals((s) => ({ ...s, [k.id]: t }));
                   }}
-                  className="h-11 w-full min-w-0 rounded-xl border border-input bg-card text-center font-display text-xl tabular outline-none focus:ring-2 focus:ring-ring"
+                  className="h-11 w-full min-w-0 rounded-xl border border-input bg-card text-center font-display text-base font-bold tabular outline-none focus:ring-2 focus:ring-[#601DAF]/30 focus:border-[#601DAF] transition"
                 />
-                <motion.button whileTap={{ scale: 0.9 }} type="button" onClick={() => step(1)} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border/70 bg-surface" aria-label="Increase">
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  type="button"
+                  onClick={() => step(1)}
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition active:scale-95 shadow-xs"
+                  aria-label="Increase"
+                >
                   <Plus className="h-4 w-4" />
                 </motion.button>
               </div>

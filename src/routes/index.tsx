@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { getDefaultRouteForRole, getStoredUser } from "@/lib/auth";
 import { SessionProvider } from "@/components/kra/session";
@@ -18,6 +19,16 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
   const user = getStoredUser();
 
   if (!user) {

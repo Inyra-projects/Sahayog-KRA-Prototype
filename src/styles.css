@@ -174,3 +174,31 @@
 @utility tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* Antigravity Spatial & Motion Design Tokens */
+@utility antigravity-float {
+  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.06), 0 6px 14px -3px rgba(0, 0, 0, 0.03);
+  transition: transform 0.28s cubic-bezier(0.34, 1.4, 0.64, 1), box-shadow 0.28s ease, border-color 0.28s ease;
+}
+
+@utility antigravity-glass {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 16px 40px -8px rgba(96, 29, 175, 0.08), 0 6px 16px -4px rgba(0, 0, 0, 0.04);
+}
+
+@utility spatial-perspective {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

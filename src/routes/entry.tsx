@@ -5,7 +5,7 @@ import { ProtectedRoute } from "@/components/kra/ProtectedRoute";
 
 export const Route = createFileRoute("/entry")({
   head: () => ({
-    meta: [{ title: "Weekly Entry — Sahayog KRA Tracker" }],
+    meta: [{ title: "Monthly Evaluations — Sahayog KRA Tracker" }],
   }),
   component: EntryRoute,
 });

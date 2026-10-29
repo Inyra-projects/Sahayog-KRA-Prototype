@@ -12,7 +12,7 @@ export const Route = createFileRoute("/kras")({
 
 function KrasRoute() {
   return (
-    <ProtectedRoute allowedRoles={["admin"]}>
+    <ProtectedRoute allowedRoles={["admin", "manager"]}>
       <SessionProvider>
         <AppShell initialTab="kras" />
       </SessionProvider>

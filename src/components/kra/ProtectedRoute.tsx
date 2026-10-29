@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { Navigate } from "@tanstack/react-router";
 import { getDefaultRouteForRole, getStoredUser } from "@/lib/auth";
 import type { Role } from "@/lib/scoring";
@@ -9,7 +9,16 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  // Synchronous check against localStorage - no loading spinner freeze
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
   const user = getStoredUser();
 
   if (!user) {

@@ -1,58 +1,146 @@
-import type { Entry, Kra, Role } from "./scoring";
+import {
+  type Entry,
+  type Kra,
+  type Role,
+  type EvaluationStatus,
+  type MonthlyEvaluation,
+  type KpiResult,
+  calculateKpiAchievement,
+  calculateEvaluationScore,
+  krasFor,
+} from "./scoring";
 import { getStoredUser, PRD_USERS, getAllStaffUsers, type PRDUser } from "./auth";
 
-export type StaffRow = { id: string; name: string; phone: string; role: Role; center: string; active: boolean };
-export type Rating = { id: string; from_id: string; to_id: string; stars: number; tag: string | null; comment: string | null; created_at: string };
-export type LoginStat = { staff_id: string; last: string | null; days7: number; total7: number };
+export type StaffRow = {
+  id: string;
+  name: string;
+  phone: string;
+  pin?: string;
+  role: Role;
+  center: string;
+  active: boolean;
+};
+
+export type Rating = {
+  id: string;
+  from_id: string;
+  to_id: string;
+  stars: number;
+  tag: string | null;
+  comment: string | null;
+  created_at: string;
+};
+
+export type LoginStat = {
+  staff_id: string;
+  last: string | null;
+  days7: number;
+  total7: number;
+};
+
 export type Bootstrap = {
   me: { id: string; name: string; role: Role; center: string };
   staff: StaffRow[];
   kras: Kra[];
-  entries: Entry[];
+  evaluations: MonthlyEvaluation[];
+  entries: Entry[]; // Maintained for backwards-compatibility
   ratings: Rating[];
   logins: LoginStat[];
 };
 
 export const INITIAL_KRAS: Kra[] = [
-  { id: "k1", role: "phlebo", name: "Home visits completed", target: 40, unit: "visits", weight: 25, direction: "higher_better", sort: 1 },
-  { id: "k2", role: "phlebo", name: "Same-day callbacks closed", target: 95, unit: "%", weight: 20, direction: "higher_better", sort: 2 },
-  { id: "k3", role: "phlebo", name: "On-time collections", target: 90, unit: "%", weight: 15, direction: "higher_better", sort: 3 },
-  { id: "k4", role: "phlebo", name: "Samples diverted / ignored", target: 0, unit: "samples", weight: 25, direction: "lower_better", sort: 4 },
-  { id: "k5", role: "phlebo", name: "Failed / abandoned visits", target: 2, unit: "visits", weight: 15, direction: "lower_better", sort: 5 },
-  { id: "k6", role: "frontdesk", name: "Digital leads logged with source", target: 100, unit: "%", weight: 25, direction: "higher_better", sort: 6 },
-  { id: "k7", role: "frontdesk", name: "Lead callbacks within SLA", target: 90, unit: "%", weight: 25, direction: "higher_better", sort: 7 },
-  { id: "k8", role: "frontdesk", name: "Bookings from digital leads", target: 25, unit: "bookings", weight: 25, direction: "higher_better", sort: 8 },
-  { id: "k9", role: "frontdesk", name: "Junk leads correctly flagged", target: 90, unit: "%", weight: 25, direction: "higher_better", sort: 9 },
+  // Home-collection phlebotomist
+  { id: "k1", role: "phlebo", name: "Home Visits", target: 160, unit: "visits", weight: 25, direction: "higher_better", sort: 1 },
+  { id: "k2", role: "phlebo", name: "Callbacks Closed", target: 95, unit: "%", weight: 20, direction: "higher_better", sort: 2 },
+  { id: "k3", role: "phlebo", name: "On-time %", target: 90, unit: "%", weight: 15, direction: "higher_better", sort: 3 },
+  { id: "k4", role: "phlebo", name: "Diverted/Ignored Visits", target: 0, unit: "visits", weight: 25, direction: "lower_better", sort: 4 },
+  { id: "k5", role: "phlebo", name: "Failed Visits", target: 8, unit: "visits", weight: 15, direction: "lower_better", sort: 5 },
+
+  // Front desk / digital leads
+  { id: "k6", role: "frontdesk", name: "Source Leads Tagged", target: 100, unit: "%", weight: 25, direction: "higher_better", sort: 6 },
+  { id: "k7", role: "frontdesk", name: "Callbacks SLA", target: 90, unit: "%", weight: 25, direction: "higher_better", sort: 7 },
+  { id: "k8", role: "frontdesk", name: "Bookings Done", target: 100, unit: "bookings", weight: 25, direction: "higher_better", sort: 8 },
+  { id: "k9", role: "frontdesk", name: "Junk Flagged", target: 90, unit: "%", weight: 25, direction: "higher_better", sort: 9 },
+];
+
+export function buildKpiResults(
+  kras: Kra[],
+  actuals: Record<string, number | null | undefined>
+): Record<string, KpiResult> {
+  const map: Record<string, KpiResult> = {};
+  for (const k of kras) {
+    const rawVal = actuals[k.id];
+    const actual = rawVal !== undefined && rawVal !== null && !Number.isNaN(rawVal) ? Number(rawVal) : null;
+    const achievement = calculateKpiAchievement(k.target, actual, k.direction);
+    map[k.id] = {
+      target: k.target,
+      actual,
+      achievement,
+      unit: k.unit,
+      direction: k.direction,
+    };
+  }
+  return map;
+}
+
+export function createEvaluationRecord(
+  employeeId: string,
+  month: string,
+  role: Role,
+  status: EvaluationStatus,
+  actuals: Record<string, number | null | undefined>,
+  feedback = "",
+  reviewerId: string | null = null,
+  timestamps?: Partial<MonthlyEvaluation["timestamps"]>
+): MonthlyEvaluation {
+  const ks = INITIAL_KRAS.filter((k) => k.role === role);
+  const kpiResults = buildKpiResults(ks, actuals);
+  const score = calculateEvaluationScore(ks, kpiResults);
+  const now = new Date().toISOString();
+
+  return {
+    id: `eval-${employeeId}-${month}`,
+    employee_id: employeeId,
+    month,
+    status,
+    kpi_results: kpiResults,
+    score,
+    feedback,
+    reviewer_id: reviewerId,
+    timestamps: {
+      createdAt: timestamps?.createdAt || now,
+      updatedAt: timestamps?.updatedAt || now,
+      submittedAt: timestamps?.submittedAt,
+      reviewedAt: timestamps?.reviewedAt,
+      finalizedAt: timestamps?.finalizedAt,
+    },
+  };
+}
+
+export const INITIAL_EVALUATIONS: MonthlyEvaluation[] = [
+  // September 2026 (Completed / Reviewed / Finalized period)
+  createEvaluationRecord("u-priya", "2026-09", "phlebo", "Locked/Finalized", { k1: 168, k2: 97, k3: 93, k4: 0, k5: 3 }, "Exceptional home collection volume and zero diverted visits.", "u-sheetal", { createdAt: "2026-09-28T09:00:00Z", submittedAt: "2026-09-30T17:00:00Z", finalizedAt: "2026-10-02T10:00:00Z" }),
+  createEvaluationRecord("u-rohit", "2026-09", "phlebo", "Reviewed", { k1: 145, k2: 83, k3: 86, k4: 2, k5: 9 }, "Action plan agreed for SLA callbacks and reducing diverted visits.", "u-sandeep", { createdAt: "2026-09-28T09:00:00Z", submittedAt: "2026-09-30T18:00:00Z", reviewedAt: "2026-10-03T11:30:00Z" }),
+  createEvaluationRecord("u-sneha", "2026-09", "phlebo", "Locked/Finalized", { k1: 162, k2: 96, k3: 91, k4: 0, k5: 4 }, "Met and exceeded targets across all parameters with positive patient feedback.", "u-sheetal", { createdAt: "2026-09-28T09:00:00Z", submittedAt: "2026-09-30T16:00:00Z", finalizedAt: "2026-10-02T10:30:00Z" }),
+  createEvaluationRecord("u-amit", "2026-09", "phlebo", "Reviewed", { k1: 122, k2: 74, k3: 77, k4: 4, k5: 11 }, "Coaching scheduled on route planning and specimen transport to reduce failed visits.", "u-sandeep", { createdAt: "2026-09-28T09:00:00Z", submittedAt: "2026-09-30T19:00:00Z", reviewedAt: "2026-10-03T14:00:00Z" }),
+  createEvaluationRecord("u-meera", "2026-09", "frontdesk", "Locked/Finalized", { k6: 100, k7: 95, k8: 112, k9: 92 }, "Superb digital lead turnaround and center bookings.", "u-sheetal", { createdAt: "2026-09-28T09:00:00Z", submittedAt: "2026-09-30T17:30:00Z", finalizedAt: "2026-10-02T11:00:00Z" }),
+  createEvaluationRecord("u-nikhil", "2026-09", "frontdesk", "Reviewed", { k6: 72, k7: 77, k8: 68, k9: 64 }, "Lead tagging needs strict consistency. Source tagging was missing on 28% of leads.", "u-sandeep", { createdAt: "2026-09-28T09:00:00Z", submittedAt: "2026-09-30T18:30:00Z", reviewedAt: "2026-10-03T15:00:00Z" }),
+  createEvaluationRecord("u-anjali", "2026-09", "frontdesk", "Locked/Finalized", { k6: 92, k7: 89, k8: 95, k9: 88 }, "Very steady performance across digital inquiries.", "u-sandeep", { createdAt: "2026-09-28T09:00:00Z", submittedAt: "2026-09-30T17:00:00Z", finalizedAt: "2026-10-02T11:30:00Z" }),
+
+  // October 2026 (Current Active Period)
+  createEvaluationRecord("u-priya", "2026-10", "phlebo", "Submitted for review", { k1: 156, k2: 96, k3: 92, k4: 0, k5: 2 }, "Covered weekend collections and emergency slots.", null, { createdAt: "2026-10-01T09:00:00Z", submittedAt: "2026-10-25T16:00:00Z" }),
+  createEvaluationRecord("u-rohit", "2026-10", "phlebo", "In progress", { k1: 132, k2: 86, k3: 88, k4: 1, k5: null }, "", null, { createdAt: "2026-10-01T09:00:00Z" }),
+  createEvaluationRecord("u-sneha", "2026-10", "phlebo", "Submitted for review", { k1: 158, k2: 95, k3: 91, k4: 0, k5: 4 }, "All home collections completed within designated time windows.", null, { createdAt: "2026-10-01T09:00:00Z", submittedAt: "2026-10-25T17:00:00Z" }),
+  createEvaluationRecord("u-amit", "2026-10", "phlebo", "Not started", { k1: null, k2: null, k3: null, k4: null, k5: null }, "", null, { createdAt: "2026-10-01T09:00:00Z" }),
+  createEvaluationRecord("u-meera", "2026-10", "frontdesk", "Submitted for review", { k6: 100, k7: 94, k8: 106, k9: 91 }, "Ready for manager sign-off.", null, { createdAt: "2026-10-01T09:00:00Z", submittedAt: "2026-10-26T10:00:00Z" }),
+  createEvaluationRecord("u-nikhil", "2026-10", "frontdesk", "In progress", { k6: 82, k7: 84, k8: 75, k9: null }, "", null, { createdAt: "2026-10-01T09:00:00Z" }),
+  createEvaluationRecord("u-anjali", "2026-10", "frontdesk", "Not started", { k6: null, k7: null, k8: null, k9: null }, "", null, { createdAt: "2026-10-01T09:00:00Z" }),
 ];
 
 export const INITIAL_ENTRIES: Entry[] = [
   { staff_id: "u-priya", week_start: "2026-09-14", actuals: { k1: 40, k2: 96, k3: 91, k4: 0, k5: 1 } },
   { staff_id: "u-priya", week_start: "2026-09-21", actuals: { k1: 42, k2: 98, k3: 92, k4: 0, k5: 1 } },
   { staff_id: "u-priya", week_start: "2026-09-28", actuals: { k1: 42, k2: 98, k3: 92, k4: 0, k5: 1 } },
-
-  { staff_id: "u-rohit", week_start: "2026-09-14", actuals: { k1: 37, k2: 84, k3: 86, k4: 1, k5: 3 } },
-  { staff_id: "u-rohit", week_start: "2026-09-21", actuals: { k1: 35, k2: 80, k3: 85, k4: 2, k5: 3 } },
-  { staff_id: "u-rohit", week_start: "2026-09-28", actuals: { k1: 35, k2: 80, k3: 85, k4: 2, k5: 3 } },
-
-  { staff_id: "u-sneha", week_start: "2026-09-14", actuals: { k1: 39, k2: 94, k3: 90, k4: 0, k5: 2 } },
-  { staff_id: "u-sneha", week_start: "2026-09-21", actuals: { k1: 40, k2: 95, k3: 90, k4: 0, k5: 2 } },
-  { staff_id: "u-sneha", week_start: "2026-09-28", actuals: { k1: 40, k2: 95, k3: 90, k4: 0, k5: 2 } },
-
-  { staff_id: "u-amit", week_start: "2026-09-14", actuals: { k1: 30, k2: 72, k3: 78, k4: 3, k5: 4 } },
-  { staff_id: "u-amit", week_start: "2026-09-21", actuals: { k1: 28, k2: 70, k3: 75, k4: 4, k5: 5 } },
-  { staff_id: "u-amit", week_start: "2026-09-28", actuals: { k1: 28, k2: 70, k3: 75, k4: 4, k5: 5 } },
-
-  { staff_id: "u-meera", week_start: "2026-09-14", actuals: { k6: 98, k7: 93, k8: 26, k9: 90 } },
-  { staff_id: "u-meera", week_start: "2026-09-21", actuals: { k6: 100, k7: 95, k8: 28, k9: 92 } },
-  { staff_id: "u-meera", week_start: "2026-09-28", actuals: { k6: 100, k7: 95, k8: 28, k9: 92 } },
-
-  { staff_id: "u-nikhil", week_start: "2026-09-14", actuals: { k6: 72, k7: 78, k8: 16, k9: 62 } },
-  { staff_id: "u-nikhil", week_start: "2026-09-21", actuals: { k6: 70, k7: 75, k8: 15, k9: 60 } },
-  { staff_id: "u-nikhil", week_start: "2026-09-28", actuals: { k6: 70, k7: 75, k8: 15, k9: 60 } },
-
-  { staff_id: "u-anjali", week_start: "2026-09-14", actuals: { k6: 88, k7: 86, k8: 21, k9: 84 } },
-  { staff_id: "u-anjali", week_start: "2026-09-21", actuals: { k6: 90, k7: 88, k8: 22, k9: 85 } },
-  { staff_id: "u-anjali", week_start: "2026-09-28", actuals: { k6: 90, k7: 88, k8: 22, k9: 85 } },
 ];
 
 export const INITIAL_RATINGS: Rating[] = [
@@ -61,7 +149,22 @@ export const INITIAL_RATINGS: Rating[] = [
   { id: "r3", from_id: "u-anjali", to_id: "u-meera", stars: 4, tag: "Lead tagging", comment: null, created_at: new Date().toISOString() },
 ];
 
-const memoryStore: Record<string, string> = {};
+let memoryStore: Record<string, string> = {};
+
+export function resetLocalStore(): void {
+  memoryStore = {};
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem("sahayog-kra-staff");
+      localStorage.removeItem("sahayog-kra-kras");
+      localStorage.removeItem("sahayog-kra-evaluations");
+      localStorage.removeItem("sahayog-kra-entries");
+      localStorage.removeItem("sahayog-kra-ratings");
+    } catch {
+      // ignore
+    }
+  }
+}
 
 export function getItem<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") {
@@ -74,6 +177,7 @@ export function getItem<T>(key: string, fallback: T): T {
       memoryStore[key] = raw;
       return JSON.parse(raw);
     }
+    delete memoryStore[key];
     return fallback;
   } catch {
     return fallback;
@@ -89,6 +193,111 @@ export function setItem<T>(key: string, value: T): void {
   } catch (e) {
     console.error(`Error saving ${key} to localStorage:`, e);
   }
+}
+
+export function getLocalEvaluations(): MonthlyEvaluation[] {
+  return getItem<MonthlyEvaluation[]>("sahayog-kra-evaluations", INITIAL_EVALUATIONS);
+}
+
+export function getLocalEvaluation(staffId: string, month: string): MonthlyEvaluation | undefined {
+  const evals = getLocalEvaluations();
+  return evals.find((e) => e.employee_id === staffId && e.month === month);
+}
+
+export function saveLocalEvaluation(params: {
+  employee_id: string;
+  month: string;
+  status: EvaluationStatus;
+  actuals: Record<string, number | null | undefined>;
+  feedback?: string;
+  reviewer_id?: string | null;
+}): MonthlyEvaluation {
+  const evals = getLocalEvaluations();
+  const kras = getItem<Kra[]>("sahayog-kra-kras", INITIAL_KRAS);
+  const staffList = getItem<(StaffRow & { pin?: string })[]>("sahayog-kra-staff", PRD_USERS);
+  const staff = staffList.find((s) => s.id === params.employee_id);
+  const role = staff?.role || "phlebo";
+  const ks = krasFor(kras, role);
+
+  const idx = evals.findIndex((e) => e.employee_id === params.employee_id && e.month === params.month);
+  const existing = idx >= 0 ? evals[idx] : undefined;
+
+  // Build target snapshots from current or existing targets
+  const kpiResults: Record<string, KpiResult> = {};
+  for (const k of ks) {
+    const rawVal = params.actuals ? params.actuals[k.id] : existing?.kpi_results[k.id]?.actual;
+    const actual = rawVal !== undefined && rawVal !== null && !Number.isNaN(rawVal) ? Number(rawVal) : null;
+    const existingSnap = existing?.kpi_results[k.id];
+    const target = existingSnap?.target ?? k.target;
+    const unit = existingSnap?.unit ?? k.unit;
+    const direction = existingSnap?.direction ?? k.direction;
+    const achievement = calculateKpiAchievement(target, actual, direction);
+
+    kpiResults[k.id] = {
+      target,
+      actual,
+      achievement,
+      unit,
+      direction,
+    };
+  }
+
+  const score = calculateEvaluationScore(ks, kpiResults);
+  const now = new Date().toISOString();
+
+  const record: MonthlyEvaluation = {
+    id: existing?.id || `eval-${params.employee_id}-${params.month}`,
+    employee_id: params.employee_id,
+    month: params.month,
+    status: params.status,
+    kpi_results: kpiResults,
+    score,
+    feedback: params.feedback !== undefined ? params.feedback : existing?.feedback || "",
+    reviewer_id: params.reviewer_id !== undefined ? params.reviewer_id : existing?.reviewer_id || null,
+    timestamps: {
+      createdAt: existing?.timestamps.createdAt || now,
+      updatedAt: now,
+      submittedAt: params.status === "Submitted for review" ? (existing?.timestamps.submittedAt || now) : existing?.timestamps.submittedAt,
+      reviewedAt: params.status === "Reviewed" ? (existing?.timestamps.reviewedAt || now) : existing?.timestamps.reviewedAt,
+      finalizedAt: params.status === "Locked/Finalized" ? (existing?.timestamps.finalizedAt || now) : existing?.timestamps.finalizedAt,
+    },
+  };
+
+  if (idx >= 0) {
+    evals[idx] = record;
+  } else {
+    evals.push(record);
+  }
+
+  setItem("sahayog-kra-evaluations", evals);
+  return record;
+}
+
+export function updateLocalEvaluationStatus(
+  employeeId: string,
+  month: string,
+  status: EvaluationStatus,
+  reviewerId?: string | null,
+  feedback?: string
+): MonthlyEvaluation {
+  const evals = getLocalEvaluations();
+  const existing = evals.find((e) => e.employee_id === employeeId && e.month === month);
+
+  const actuals: Record<string, number | null> = {};
+  if (existing) {
+    for (const [k, v] of Object.entries(existing.kpi_results)) {
+      actuals[k] = v.actual;
+    }
+  }
+
+  return saveLocalEvaluation({
+    employee_id: employeeId,
+    month,
+    status,
+    actuals,
+    feedback: feedback !== undefined ? feedback : existing?.feedback,
+    reviewer_id: reviewerId !== undefined ? reviewerId : existing?.reviewer_id,
+  });
 }
 
 export function getLocalBootstrap(token?: string): Bootstrap {
@@ -115,7 +324,9 @@ export function getLocalBootstrap(token?: string): Bootstrap {
     active: u.active,
   }));
 
-  const staffWithPins = getItem<(StaffRow & { pin?: string })[]>("sahayog-kra-staff", initialStaffList);
+  const loadedStaff = getItem<(StaffRow & { pin?: string })[]>("sahayog-kra-staff", initialStaffList);
+  const missing = initialStaffList.filter((init) => !loadedStaff.some((s) => s.id === init.id));
+  const staffWithPins = missing.length > 0 ? [...loadedStaff, ...missing] : loadedStaff;
 
   const staff: StaffRow[] = staffWithPins.map((s) => ({
     id: s.id,
@@ -127,6 +338,7 @@ export function getLocalBootstrap(token?: string): Bootstrap {
   }));
 
   const kras: Kra[] = getItem<Kra[]>("sahayog-kra-kras", INITIAL_KRAS);
+  const evaluations: MonthlyEvaluation[] = getItem<MonthlyEvaluation[]>("sahayog-kra-evaluations", INITIAL_EVALUATIONS);
   const entries: Entry[] = getItem<Entry[]>("sahayog-kra-entries", INITIAL_ENTRIES);
   const ratings: Rating[] = getItem<Rating[]>("sahayog-kra-ratings", INITIAL_RATINGS);
 
@@ -139,10 +351,10 @@ export function getLocalBootstrap(token?: string): Bootstrap {
     total7: 7,
   }));
 
-  const filteredStaff = staff
-    .filter((s) => isLead || s.active)
-    .map((s) => (meUser.role === "admin" ? s : { ...s, phone: isLead ? s.phone : "" }));
+  // Preserve all staff for leads; regular staff see colleagues for peer review
+  const filteredStaff = staff.map((s) => (meUser?.role === "admin" ? s : { ...s, phone: isLead ? s.phone : "" }));
 
+  const filteredEvaluations = isLead ? evaluations : evaluations.filter((e) => e.employee_id === meUser.id);
   const filteredEntries = isLead ? entries : entries.filter((e) => e.staff_id === meUser.id);
   const filteredRatings = isLead ? ratings : ratings.filter((r) => r.from_id === meUser.id);
 
@@ -150,6 +362,7 @@ export function getLocalBootstrap(token?: string): Bootstrap {
     me,
     staff: filteredStaff,
     kras,
+    evaluations: filteredEvaluations,
     entries: filteredEntries,
     ratings: filteredRatings,
     logins,
@@ -190,7 +403,7 @@ export function upsertLocalStaff(data: {
   role?: Role;
   center?: string;
   active?: boolean;
-}): void {
+}): { ok: boolean; staff?: StaffRow; error?: string } {
   const initialStaffList: (StaffRow & { pin?: string })[] = PRD_USERS.map((u) => ({
     id: u.id,
     name: u.name,
@@ -201,7 +414,8 @@ export function upsertLocalStaff(data: {
     active: u.active,
   }));
 
-  const staff = getItem<(StaffRow & { pin?: string })[]>("sahayog-kra-staff", initialStaffList);
+  const rawStaff = getItem<(StaffRow & { pin?: string })[]>("sahayog-kra-staff", initialStaffList);
+  const staff = rawStaff.map((s) => ({ ...s }));
 
   if (data.id) {
     const idx = staff.findIndex((s) => s.id === data.id);
@@ -216,19 +430,54 @@ export function upsertLocalStaff(data: {
         active: data.active ?? existing.active,
         pin: data.pin || existing.pin || "1234",
       };
+      setItem("sahayog-kra-staff", staff);
+      return { ok: true, staff: staff[idx] };
     }
-  } else {
-    staff.push({
-      id: `u-${Date.now()}`,
-      name: data.name || "New Staff",
-      phone: data.phone || "9876509999",
-      pin: data.pin || "1234",
-      role: data.role || "phlebo",
-      center: data.center || "Nanded City",
-      active: data.active ?? true,
-    });
   }
+
+  // Adding new staff: check for duplicate ID
+  const newId = data.id || `u-${(data.name || "staff").toLowerCase().replace(/[^a-z0-9]/g, "")}-${Date.now().toString().slice(-4)}`;
+  const duplicate = staff.some((s) => s.id === newId);
+  if (duplicate) {
+    return { ok: false, error: "Employee ID already exists. Please choose a unique identifier." };
+  }
+
+  const newStaff: StaffRow & { pin?: string } = {
+    id: newId,
+    name: data.name || "New Staff",
+    phone: data.phone || "9876509999",
+    pin: data.pin || "1234",
+    role: data.role || "phlebo",
+    center: data.center || "Nanded City",
+    active: data.active ?? true,
+  };
+
+  staff.push(newStaff);
   setItem("sahayog-kra-staff", staff);
+  return { ok: true, staff: newStaff };
+}
+
+export function toggleLocalStaffActive(id: string): { ok: boolean; active?: boolean; error?: string } {
+  const initialStaffList: (StaffRow & { pin?: string })[] = PRD_USERS.map((u) => ({
+    id: u.id,
+    name: u.name,
+    phone: u.phone,
+    pin: u.pin,
+    role: u.role,
+    center: u.center,
+    active: u.active,
+  }));
+  const rawStaff = getItem<(StaffRow & { pin?: string })[]>("sahayog-kra-staff", initialStaffList);
+  const staff = rawStaff.map((s) => ({ ...s }));
+  const idx = staff.findIndex((s) => s.id === id);
+  if (idx < 0 || !staff[idx]) {
+    return { ok: false, error: "Staff member not found" };
+  }
+  const current = staff[idx].active;
+  staff[idx].active = !current;
+  setItem("sahayog-kra-staff", staff);
+  // Note: Historical evaluations in "sahayog-kra-evaluations" remain strictly untouched and preserved!
+  return { ok: true, active: !current };
 }
 
 export function upsertLocalKra(data: {
@@ -250,7 +499,7 @@ export function upsertLocalKra(data: {
     kras.push({
       id: `k-${Date.now()}`,
       role: data.role || "phlebo",
-      name: data.name || "New KRA",
+      name: data.name || "New KPI",
       target: data.target ?? 0,
       unit: data.unit ?? "",
       weight: data.weight ?? 0,
@@ -266,3 +515,4 @@ export function deleteLocalKra(id: string): void {
   const updated = kras.filter((k) => k.id !== id);
   setItem("sahayog-kra-kras", updated);
 }
+

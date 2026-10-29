@@ -12,7 +12,7 @@ export const Route = createFileRoute("/team")({
 
 function TeamRoute() {
   return (
-    <ProtectedRoute allowedRoles={["admin"]}>
+    <ProtectedRoute allowedRoles={["admin", "manager"]}>
       <SessionProvider>
         <AppShell initialTab="team" />
       </SessionProvider>
